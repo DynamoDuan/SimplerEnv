@@ -66,7 +66,7 @@ Additionally, you can play with our environments in an interactive manner throug
 ## Installation
 
 Prerequisites:
-- CUDA version >=11.8 (this is required if you want to perform a full installation of this repo and perform RT-1 or Octo inference)
+- CUDA version >=11.8 and < 13 (this is required if you want to perform a full installation of this repo and perform RT-1 or Octo inference)
 - An NVIDIA GPU (ideally RTX; for non-RTX GPUs, such as 1080Ti and A100, environments that involve ray tracing will be slow). Currently TPU is not supported as SAPIEN requires a GPU to run.
 
 Create an anaconda environment:
