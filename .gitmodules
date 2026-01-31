@@ -1,3 +1,12 @@
 [submodule "ManiSkill2_real2sim"]
 	path = ManiSkill2_real2sim
 	url = https://github.com/simpler-env/ManiSkill2_real2sim
+[submodule "third_party/mega-sam"]
+	path = third_party/mega-sam
+	url = https://github.com/simpler-env/mega-sam
+[submodule "third_party/GraspGen"]
+	path = third_party/GraspGen
+	url = https://github.com/simpler-env/GraspGen
+[submodule "third_party/FoundationPose"]
+	path = third_party/FoundationPose
+	url = https://github.com/simpler-env/FoundationPose
