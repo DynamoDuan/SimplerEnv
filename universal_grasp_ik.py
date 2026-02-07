@@ -15,6 +15,8 @@ import sapien.core as sapien
 import sys
 sys.path.insert(0, '/data/peiqiduan/SimplerEnv')
 
+from scipy.spatial.transform import Rotation
+
 import simpler_env
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
 from simpler_env.utils.motionplanning.utils import get_actor_obb, compute_grasp_info_by_obb
@@ -62,7 +64,7 @@ def compute_target_closing_from_obb(obb, approaching=None):
     
     # 策略1: 选择最短的轴作为closing方向（通常更适合抓取）
     # 因为较短的轴意味着物体在这个方向上更窄，更容易抓取
-    shorter_axis_idx = np.argmax(remaining_extents)
+    shorter_axis_idx = np.argmin(remaining_extents)
     target_closing = remaining_axes[:, shorter_axis_idx]
     
     # # 策略2（备选）: 如果两个轴长度接近，选择最接近水平方向的轴
@@ -112,13 +114,20 @@ def get_target_object(env):
         raise ValueError("无法找到目标物体。该环境可能不支持物体抓取。")
 
 
+def _sapien_quat_to_scipy(q):
+    """Convert sapien quaternion [w,x,y,z] to scipy [x,y,z,w]."""
+    return np.array([q[1], q[2], q[3], q[0]])
+
+
 def move_to_pose_with_delta(env, target_pose_at_base, gripper_state, steps=50, tolerance=0.01, debug=False):
-    """使用 delta pose 控制移动到目标位置"""
+    """使用 delta pose 控制移动到目标位置和姿态"""
     obs_list = []
     tcp_link_name = env.unwrapped.agent.config.ee_link_name
     tcp_link = [link for link in env.unwrapped.agent.robot.get_links()
                 if link.get_name() == tcp_link_name][0]
     robot_base_pose = env.unwrapped.agent.robot.pose
+
+    R_target = Rotation.from_quat(_sapien_quat_to_scipy(target_pose_at_base.q))
 
     for i in range(steps):
         # 获取当前 TCP 位姿（在 base 坐标系）
@@ -128,9 +137,14 @@ def move_to_pose_with_delta(env, target_pose_at_base, gripper_state, steps=50, t
         # 计算到目标的距离
         pos_error = np.linalg.norm(current_pose_at_base.p - target_pose_at_base.p)
 
-        if pos_error < tolerance:
+        # 计算姿态误差
+        R_current = Rotation.from_quat(_sapien_quat_to_scipy(current_pose_at_base.q))
+        R_error = R_target * R_current.inv()
+        rot_error = np.linalg.norm(R_error.as_rotvec())
+
+        if pos_error < tolerance and rot_error < 0.05:
             if debug:
-                print(f"       已到达目标位置 (步骤 {i+1}/{steps}, 误差 {pos_error:.4f}m)")
+                print(f"       已到达目标位姿 (步骤 {i+1}/{steps}, 位置误差 {pos_error:.4f}m, 姿态误差 {np.degrees(rot_error):.1f}°)")
             break
 
         # 计算 delta_pos（在 base 坐标系）
@@ -139,8 +153,12 @@ def move_to_pose_with_delta(env, target_pose_at_base, gripper_state, steps=50, t
         if np.linalg.norm(delta_p_base) > max_step:
             delta_p_base = delta_p_base / np.linalg.norm(delta_p_base) * max_step
 
-        # 不使用 delta_rot
-        delta_rot = np.zeros(3)
+        # 计算 delta_rot（axis-angle，在 base 坐标系）
+        delta_rot = R_error.as_rotvec()
+        max_rot_step = 0.05  # 每步最大旋转 ~2.9°
+        rot_magnitude = np.linalg.norm(delta_rot)
+        if rot_magnitude > max_rot_step:
+            delta_rot = delta_rot / rot_magnitude * max_rot_step
 
         # 构建 action
         action = np.concatenate([delta_p_base, delta_rot, [gripper_state]])

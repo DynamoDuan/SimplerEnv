@@ -1,12 +1,14 @@
 """
-Google Robot 抓取可乐罐 - 仅使用 IK（不使用 mplib planner）
+Google Robot 抓取可乐罐/7up - 仅使用 IK（不使用 mplib planner）
 
 这个脚本使用环境自带的 IK 控制器来实现抓取，不需要 mplib。
+支持的物体：coke_can, 7up
 """
 import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["DISPLAY"] = ""
 
+import argparse
 import cv2
 import numpy as np
 from pathlib import Path
@@ -249,28 +251,52 @@ def solve(env, seed=None):
 
 
 if __name__ == "__main__":
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="Google Robot 抓取物体 - IK 控制")
+    parser.add_argument(
+        "--object",
+        type=str,
+        default="coke_can",
+        choices=["coke_can", "7up"],
+        help="要抓取的物体类型 (默认: coke_can)"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="随机种子 (默认: 42)"
+    )
+    args = parser.parse_args()
+
+    # 根据物体类型选择环境名称
+    env_name_map = {
+        "coke_can": "google_robot_pick_coke_can",
+        "7up": "GraspSingle7upCanInScene-v0",
+    }
+    env_name = env_name_map[args.object]
+
     # 创建输出目录
     output_dir = Path(OUTPUT_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 创建环境
-    print("创建 Google Robot 抓取可乐罐环境...")
+    print(f"创建 Google Robot 抓取{args.object}环境...")
     env = simpler_env.make(
-        "google_robot_pick_coke_can",
+        env_name,
         obs_mode="rgbd",
     )
-    
-    print("开始执行抓取任务（仅使用 IK）...")
-    obs_list, action_list = solve(env, seed=42)
-    
+
+    print(f"开始执行抓取任务（仅使用 IK）- 物体: {args.object}, 种子: {args.seed}...")
+    obs_list, action_list = solve(env, seed=args.seed)
+
     if obs_list is None:
         print("❌ 任务失败")
         exit(1)
-    
+
     print(f"✅ 任务成功！生成了 {len(obs_list)} 个观测")
-    
+
     # 保存视频（简化版）
-    video_filename = output_dir / "google_robot_pick_coke_can_ik.mp4"
+    video_filename = output_dir / f"google_robot_pick_{args.object}_ik.mp4"
     print(f"\n保存视频到: {video_filename}")
 
     try:

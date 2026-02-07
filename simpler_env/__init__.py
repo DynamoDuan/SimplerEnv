@@ -4,6 +4,7 @@ import warnings
 
 ENVIRONMENTS = [
     "google_robot_pick_coke_can",
+    "google_robot_pick_7up_can",
     "google_robot_pick_horizontal_coke_can",
     "google_robot_pick_vertical_coke_can",
     "google_robot_pick_standing_coke_can",
@@ -32,6 +33,7 @@ ENVIRONMENTS = [
 
 ENVIRONMENT_MAP = {
     "google_robot_pick_coke_can": ("GraspSingleOpenedCokeCanInScene-v0", {}),
+    "google_robot_pick_7up_can": ("GraspSingle7upCanInScene-v0", {}),
     "google_robot_pick_horizontal_coke_can": (
         "GraspSingleOpenedCokeCanInScene-v0",
         {"lr_switch": True},
